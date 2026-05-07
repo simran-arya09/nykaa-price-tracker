@@ -105,6 +105,10 @@ nykaa-price-tracker/
 - Set `JWT_SECRET` to a strong random value in production — never use the dev default
 
 ---
+<img width="1897" height="821" alt="Screenshot 2026-05-07 123105" src="https://github.com/user-attachments/assets/e5d5d52f-68bb-4cdb-9ba1-22650ce02e3d" />
+<img width="1885" height="806" alt="Screenshot 2026-05-07 123048" src="https://github.com/user-attachments/assets/b864c7e8-675d-45dd-a574-c4f1ed1725c8" />
+<img width="1902" height="834" alt="Screenshot 2026-05-07 123034" src="https://github.com/user-attachments/assets/81b33f38-2787-4808-8b46-19066d3861a7" />
+<img width="1891" height="816" alt="Screenshot 2026-05-07 123000" src="https://github.com/user-attachments/assets/d132ea45-7b75-44b0-8126-d893ac6006a9" />
 
 ## 📄 License
 
