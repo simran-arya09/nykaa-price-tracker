@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#e91e8c"/>
+  <text x="32" y="44" font-size="36" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" fill="white">N</text>
+  <circle cx="48" cy="18" r="8" fill="#fff"/>
+  <polyline points="44,18 47,21 53,15" stroke="#e91e8c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

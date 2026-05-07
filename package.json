@@ -1,0 +1,26 @@
+{
+  "name": "nykaa-tracker",
+  "version": "1.0.0",
+  "description": "Nykaa product price tracker with multi-user support",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "npm install --build-from-source"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.16.0",
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.2.0",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.0",
+    "node-cron": "^4.2.1",
+    "sqlite3": "^6.0.1"
+  }
+}

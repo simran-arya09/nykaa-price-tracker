@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nykaa Price Tracker</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --pink: #E91E8C;
+      --pink-dark: #C2185B;
+      --pink-light: #FCE4EC;
+      --pink-mid: #F48FB1;
+      --purple: #9C27B0;
+      --bg: #F7F2F5;
+      --white: #FFFFFF;
+      --card: #FFFFFF;
+      --text: #1A0A12;
+      --text-2: #6B5860;
+      --text-3: #B09AA4;
+      --border: #EDE0E8;
+      --shadow-sm: 0 1px 4px rgba(0,0,0,.06);
+      --shadow: 0 4px 20px rgba(0,0,0,.08);
+      --shadow-lg: 0 12px 40px rgba(0,0,0,.12);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+    /* ── AUTH ── */
+    #authScreen {
+      min-height: 100vh; display: none; align-items: stretch;
+      background: var(--white);
+    }
+    #authScreen.visible { display: flex; }
+
+    .auth-left {
+      flex: 0 0 420px;
+      background: linear-gradient(160deg, #1a0a12 0%, #3d0a2a 50%, #6d1040 100%);
+      padding: 60px 48px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      position: relative; overflow: hidden;
+    }
+    .auth-left::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at 30% 70%, rgba(233,30,140,.25) 0%, transparent 60%),
+                  radial-gradient(circle at 80% 20%, rgba(156,39,176,.2) 0%, transparent 50%);
+    }
+    .auth-left-content { position: relative; z-index: 1; }
+    .auth-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 56px; }
+    .auth-brand-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 24px rgba(233,30,140,.4);
+    }
+    .auth-brand-icon svg { width: 32px; height: 32px; }
+    .auth-brand-name { color: #fff; font-size: 1.25rem; font-weight: 700; letter-spacing: -.3px; }
+    .auth-headline {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.4rem; color: #fff; line-height: 1.15;
+      margin-bottom: 20px;
+    }
+    .auth-headline span { color: var(--pink-mid); }
+    .auth-sub { color: rgba(255,255,255,.55); font-size: .95rem; line-height: 1.7; }
+    .auth-features { margin-top: 48px; display: flex; flex-direction: column; gap: 16px; }
+    .auth-feature { display: flex; align-items: center; gap: 12px; color: rgba(255,255,255,.75); font-size: .88rem; }
+    .auth-feature-dot {
+      width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+      background: rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; font-size: 1rem;
+    }
+    .auth-left-footer { position: relative; z-index: 1; color: rgba(255,255,255,.3); font-size: .75rem; }
+
+    .auth-right {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 40px 48px; background: var(--white);
+    }
+    .auth-form-wrap { width: 100%; max-width: 400px; }
+    .auth-form-title { font-size: 1.65rem; font-weight: 800; color: var(--text); letter-spacing: -.5px; margin-bottom: 6px; }
+    .auth-form-sub { color: var(--text-3); font-size: .9rem; margin-bottom: 32px; }
+
+    .auth-tabs {
+      display: flex; gap: 4px;
+      background: var(--bg); border-radius: 12px; padding: 4px;
+      margin-bottom: 28px;
+    }
+    .auth-tab {
+      flex: 1; padding: 9px 8px; border-radius: 9px; border: none;
+      background: transparent; color: var(--text-3); font-size: .83rem;
+      font-weight: 600; cursor: pointer; transition: all .2s; font-family: inherit;
+    }
+    .auth-tab.active { background: var(--white); color: var(--pink); box-shadow: 0 1px 6px rgba(0,0,0,.1); }
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: .78rem; font-weight: 600; color: var(--text-2); margin-bottom: 7px; letter-spacing: .2px; }
+    .field input {
+      width: 100%; padding: 12px 16px;
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      font-size: .93rem; font-family: inherit; outline: none; color: var(--text);
+      background: var(--white); transition: border-color .2s, box-shadow .2s;
+    }
+    .field input:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(233,30,140,.1); }
+    .field input::placeholder { color: var(--text-3); }
+
+    .btn-primary {
+      width: 100%; padding: 13px; margin-top: 4px;
+      background: linear-gradient(135deg, var(--pink), var(--pink-dark));
+      color: #fff; border: none; border-radius: var(--radius-sm);
+      font-size: .95rem; font-weight: 700; font-family: inherit;
+      cursor: pointer; letter-spacing: .2px;
+      box-shadow: 0 4px 16px rgba(233,30,140,.35);
+      transition: opacity .2s, transform .15s, box-shadow .2s;
+    }
+    .btn-primary:hover { opacity: .92; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(233,30,140,.4); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: .6; transform: none; cursor: not-allowed; }
+
+    .auth-msg { margin-top: 14px; font-size: .84rem; padding: 10px 14px; border-radius: 8px; text-align: center; }
+    .auth-msg.error { background: #FFF0F4; color: #C62828; border: 1px solid #FFCDD2; }
+    .auth-msg.success { background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0; }
+
+    @media (max-width: 768px) {
+      .auth-left { display: none; }
+      .auth-right { padding: 32px 24px; }
+    }
+
+    /* ── APP LAYOUT ── */
+    #appScreen { display: none; min-height: 100vh; }
+    #appScreen.visible { display: block; }
+
+    /* Header */
+    .app-header {
+      background: var(--white); border-bottom: 1px solid var(--border);
+      padding: 0 32px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 1px 0 var(--border);
+    }
+    .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .header-brand-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      border-radius: 9px; display: flex; align-items: center; justify-content: center;
+    }
+    .header-brand-icon svg { width: 22px; height: 22px; }
+    .header-brand-name { font-size: 1rem; font-weight: 800; color: var(--text); letter-spacing: -.3px; }
+    .header-brand-name span { color: var(--pink); }
+
+    .header-nav { display: flex; gap: 4px; }
+    .nav-btn {
+      padding: 7px 16px; border-radius: 8px; border: none;
+      background: transparent; color: var(--text-2); font-size: .85rem;
+      font-weight: 600; cursor: pointer; transition: all .18s; font-family: inherit;
+    }
+    .nav-btn:hover { background: var(--bg); color: var(--text); }
+    .nav-btn.active { background: var(--pink-light); color: var(--pink); }
+
+    .header-user { display: flex; align-items: center; gap: 10px; }
+    .user-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .85rem; color: #fff; flex-shrink: 0;
+    }
+    .user-name { font-size: .88rem; font-weight: 600; color: var(--text-2); }
+    .btn-logout {
+      padding: 6px 14px; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text-2); border-radius: 8px; font-size: .8rem;
+      font-weight: 600; cursor: pointer; transition: all .18s; font-family: inherit;
+    }
+    .btn-logout:hover { background: #FFF0F4; border-color: var(--pink-mid); color: var(--pink); }
+
+    /* Container */
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+    /* Stats */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .stat-card {
+      background: var(--card); border-radius: var(--radius); padding: 22px 24px;
+      box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+    }
+    .stat-icon {
+      width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+    }
+    .stat-icon.pink { background: var(--pink-light); }
+    .stat-icon.green { background: #F0FDF4; }
+    .stat-icon.purple { background: #F5F0FF; }
+    .stat-val { font-size: 1.6rem; font-weight: 800; color: var(--text); letter-spacing: -.5px; line-height: 1; }
+    .stat-label { font-size: .76rem; color: var(--text-3); margin-top: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+
+    /* Section header */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .section-title { font-size: 1.1rem; font-weight: 800; color: var(--text); letter-spacing: -.3px; }
+    .section-sub { font-size: .82rem; color: var(--text-3); margin-top: 2px; }
+
+    /* Add product */
+    .add-bar {
+      background: var(--card); border-radius: var(--radius); padding: 20px 24px;
+      box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .add-bar-label { font-size: .78rem; font-weight: 600; color: var(--text-2); margin-bottom: 10px; letter-spacing: .2px; }
+    .add-row { display: flex; flex-direction: column; gap: 10px; }
+    .add-input {
+      width: 100%; padding: 12px 16px; box-sizing: border-box;
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      font-size: .9rem; font-family: inherit; outline: none; color: var(--text);
+      background: var(--bg); transition: border-color .2s, box-shadow .2s, background .2s;
+      resize: vertical; min-height: 48px; max-height: 160px; line-height: 1.6;
+    }
+    .add-input:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(233,30,140,.1); background: var(--white); }
+    .add-input::placeholder { color: var(--text-3); }
+    .add-bottom-row { display: flex; align-items: center; gap: 12px; }
+    .add-hint { font-size: .75rem; color: var(--text-3); flex: 1; }
+    .btn-add {
+      padding: 12px 24px; background: linear-gradient(135deg, var(--pink), var(--pink-dark));
+      color: #fff; border: none; border-radius: var(--radius-sm);
+      font-size: .9rem; font-weight: 700; font-family: inherit; cursor: pointer;
+      white-space: nowrap; box-shadow: 0 4px 12px rgba(233,30,140,.3);
+      transition: opacity .2s, transform .15s;
+    }
+    .btn-add:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-add:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .add-msg { margin-top: 12px; font-size: .84rem; padding: 9px 14px; border-radius: 8px; }
+    .add-msg.success { background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0; }
+    .add-msg.error { background: #FFF0F4; color: #C62828; border: 1px solid #FFCDD2; }
+    .add-msg.loading { background: var(--pink-light); color: var(--pink-dark); border: 1px solid var(--pink-mid); }
+
+    /* Product grid */
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+
+    .product-card {
+      background: var(--card); border-radius: var(--radius); overflow: hidden;
+      box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+      transition: transform .2s, box-shadow .2s;
+      display: flex; flex-direction: column;
+    }
+    .product-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+
+    .product-img-wrap {
+      position: relative; background: #FFF7FC;
+      height: 200px; overflow: hidden; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .product-img-wrap img {
+      width: 100%; height: 100%; object-fit: contain;
+      padding: 10px;
+      transition: transform .4s ease;
+    }
+    .product-card:hover .product-img-wrap img { transform: scale(1.05); }
+    .product-img-placeholder {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3.5rem; opacity: .5;
+    }
+    .product-badge {
+      position: absolute; top: 12px; left: 12px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff; padding: 3px 10px; border-radius: 20px;
+      font-size: .71rem; font-weight: 700; letter-spacing: .3px;
+    }
+
+    .product-body { padding: 16px 18px 18px; flex: 1; display: flex; flex-direction: column; }
+    .product-name {
+      font-size: .88rem; font-weight: 600; color: var(--text); line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      margin-bottom: 10px; flex: 1;
+    }
+    .product-name a { color: inherit; text-decoration: none; }
+    .product-name a:hover { color: var(--pink); }
+    .product-price-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .product-price { font-size: 1.25rem; font-weight: 800; color: var(--text); letter-spacing: -.3px; }
+    .product-price-mrp { font-size: .83rem; color: var(--text-3); text-decoration: line-through; }
+    .product-price-off { font-size: .72rem; font-weight: 700; color: #16a34a; background: #F0FDF4; border: 1px solid #BBF7D0; padding: 1px 7px; border-radius: 20px; }
+    .product-price-label { font-size: .72rem; color: var(--text-3); font-weight: 500; }
+    .sale-badge { position: absolute; top: 12px; right: 12px; background: linear-gradient(135deg, #FF6B6B, #e11d48); color: #fff; padding: 3px 10px; border-radius: 20px; font-size: .71rem; font-weight: 700; letter-spacing: .3px; }
+    .product-actions { display: flex; gap: 8px; }
+    .btn-action {
+      flex: 1; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--border);
+      font-size: .78rem; font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: all .18s; background: var(--white); color: var(--text-2);
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .btn-action:hover { border-color: var(--pink-mid); color: var(--pink); background: var(--pink-light); }
+    .btn-action.danger:hover { border-color: #FCA5A5; color: #DC2626; background: #FFF5F5; }
+    .btn-action.hist { border-color: #DDD6FE; color: #7C3AED; }
+    .btn-action.hist:hover { border-color: #7C3AED; background: #F5F3FF; }
+
+    /* Alerts table */
+    .alerts-wrap { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-sm); }
+    .alert-item {
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr;
+      gap: 12px; padding: 14px 20px; align-items: center;
+      border-bottom: 1px solid var(--border); transition: background .15s;
+    }
+    .alert-item:last-child { border-bottom: none; }
+    .alert-item:hover { background: #FAFAFA; }
+    .alert-header {
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr;
+      gap: 12px; padding: 10px 20px;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+    }
+    .alert-th { font-size: .72rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; }
+    .alert-name { font-size: .87rem; font-weight: 600; color: var(--text); }
+    .alert-old { font-size: .87rem; color: var(--text-3); text-decoration: line-through; }
+    .alert-new { font-size: .9rem; font-weight: 700; color: #16a34a; }
+    .alert-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: #F0FDF4; color: #16a34a; border-radius: 20px; font-size: .75rem; font-weight: 700; border: 1px solid #BBF7D0; }
+    .alert-badge.sale { background: #FFF1F2; color: #e11d48; border-color: #FECDD3; }
+    .alert-time { font-size: .78rem; color: var(--text-3); }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center; padding: 64px 24px;
+      background: var(--card); border-radius: var(--radius);
+      border: 1.5px dashed var(--border);
+    }
+    .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: .5; }
+    .empty-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .empty-sub { font-size: .85rem; color: var(--text-3); line-height: 1.6; max-width: 280px; margin: 0 auto; }
+
+    /* Secondary actions bar */
+    .actions-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .btn-secondary {
+      padding: 9px 18px; background: var(--white); border: 1.5px solid var(--border);
+      color: var(--text-2); border-radius: var(--radius-sm); font-size: .83rem;
+      font-weight: 600; font-family: inherit; cursor: pointer; transition: all .18s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-secondary:hover { border-color: var(--pink-mid); color: var(--pink); background: var(--pink-light); }
+    .btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Nykaa Sync tab */
+    .sync-card {
+      background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+      padding: 28px; box-shadow: var(--shadow-sm); margin-bottom: 20px;
+    }
+    .sync-card h3 { font-size: 1rem; font-weight: 800; color: var(--text); margin-bottom: 6px; letter-spacing: -.2px; }
+    .sync-card p { font-size: .85rem; color: var(--text-2); line-height: 1.7; margin-bottom: 18px; }
+    .bookmarklet-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 20px;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      color: #fff; border-radius: 30px; font-weight: 700; font-size: .88rem;
+      text-decoration: none; cursor: grab;
+      box-shadow: 0 4px 16px rgba(233,30,140,.35);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .bookmarklet-pill:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(233,30,140,.4); }
+    .steps-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .step { display: flex; align-items: center; gap: 12px; font-size: .83rem; color: var(--text-2); }
+    .step-num {
+      width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+      background: var(--pink-light); color: var(--pink); font-weight: 700; font-size: .75rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .bulk-textarea {
+      width: 100%; height: 130px; padding: 14px 16px;
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      font-size: .85rem; font-family: inherit; outline: none; color: var(--text);
+      background: var(--bg); resize: vertical; transition: border-color .2s;
+      line-height: 1.6;
+    }
+    .bulk-textarea:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(233,30,140,.1); background: var(--white); }
+    #bulkResults { margin-top: 14px; display: flex; flex-direction: column; gap: 4px; }
+    .bulk-row { display: flex; align-items: center; gap: 10px; font-size: .82rem; padding: 8px 12px; border-radius: 8px; background: var(--bg); }
+    .bulk-ok { color: #16a34a; font-weight: 700; }
+    .bulk-fail { color: #DC2626; font-weight: 700; }
+
+    /* Toast notification */
+    #toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: #1A0A12; color: #fff; padding: 12px 24px; border-radius: 30px;
+      font-size: .88rem; font-weight: 600; box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; z-index: 9999;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 200;
+      align-items: center; justify-content: center; padding: 20px;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--white); border-radius: 20px; width: 100%; max-width: 680px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 24px 64px rgba(0,0,0,.2);
+      animation: modalIn .25s ease;
+    }
+    @keyframes modalIn { from { transform: scale(.96) translateY(12px); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-inner { padding: 28px; }
+    .modal-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; }
+    .modal-product { display: flex; align-items: center; gap: 14px; }
+    .modal-thumb {
+      width: 58px; height: 58px; border-radius: 12px; object-fit: cover;
+      background: var(--pink-light); flex-shrink: 0; border: 1px solid var(--border);
+    }
+    .modal-ph { width: 58px; height: 58px; border-radius: 12px; background: var(--pink-light); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; flex-shrink: 0; }
+    .modal-product-name { font-size: .95rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+    .modal-product-sub { font-size: .78rem; color: var(--text-3); margin-top: 3px; }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 50%; border: none;
+      background: var(--bg); color: var(--text-2); font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      transition: background .18s; padding: 0;
+    }
+    .modal-close:hover { background: var(--border); }
+    .chart-wrap { height: 280px; position: relative; }
+    .chart-empty { text-align: center; padding: 80px 0; color: var(--text-3); font-size: .88rem; }
+
+    /* Loading skeleton */
+    .skeleton { background: linear-gradient(90deg, #F0E8ED 25%, #E8DCE5 50%, #F0E8ED 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .app-header { padding: 0 16px; }
+      .header-nav { display: none; }
+      .container { padding: 20px 16px; }
+      .stats-row { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    }
+    @media (max-width: 640px) {
+      .stats-row { grid-template-columns: 1fr; }
+      .product-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+      .product-img-wrap { height: 150px; }
+      .alert-item, .alert-header { grid-template-columns: 2fr 1fr 1fr; }
+      .alert-badge, .alert-time { display: none; }
+      .add-row { flex-direction: column; }
+      .btn-add { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Toast ── -->
+<div id="toast"></div>
+
+<!-- ═══════════ AUTH SCREEN ═══════════ -->
+<div id="authScreen">
+  <div class="auth-left">
+    <div class="auth-left-content">
+      <div class="auth-brand">
+        <div class="auth-brand-icon">
+          <svg viewBox="0 0 64 64" fill="none"><text x="32" y="44" font-size="34" text-anchor="middle" font-family="Arial,sans-serif" font-weight="bold" fill="white">N</text></svg>
+        </div>
+        <div class="auth-brand-name">Nykaa Tracker</div>
+      </div>
+      <div class="auth-headline">Track every<br>price drop.<br><span>Catch every deal.</span></div>
+      <div class="auth-sub">Your personal Nykaa price watchlist — get notified the moment prices fall on the products you love.</div>
+      <div class="auth-features">
+        <div class="auth-feature"><div class="auth-feature-dot">📈</div>Live price history charts</div>
+        <div class="auth-feature"><div class="auth-feature-dot">🔔</div>Instant price drop alerts</div>
+        <div class="auth-feature"><div class="auth-feature-dot">🔖</div>One-click bookmarklet add</div>
+        <div class="auth-feature"><div class="auth-feature-dot">👥</div>Private per-user accounts</div>
+      </div>
+    </div>
+    <div class="auth-left-footer">Tracks every 15 minutes automatically</div>
+  </div>
+
+  <div class="auth-right">
+    <div class="auth-form-wrap">
+      <div class="auth-tabs" id="authTabBar">
+        <button class="auth-tab active" onclick="switchAuthTab('login')">Log In</button>
+        <button class="auth-tab" onclick="switchAuthTab('register')">Sign Up</button>
+        <button class="auth-tab" onclick="switchAuthTab('forgot')">Reset</button>
+      </div>
+
+      <!-- Login -->
+      <form class="auth-form active" id="loginForm" onsubmit="handleLogin(event)">
+        <div id="loginTitle">
+          <div class="auth-form-title">Welcome back</div>
+          <div class="auth-form-sub">Sign in to your account to continue</div>
+        </div>
+        <div style="height:24px"></div>
+        <div class="field"><label>Email address</label><input type="email" id="loginEmail" placeholder="you@email.com" autocomplete="email" required></div>
+        <div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password" required></div>
+        <button type="submit" class="btn-primary" id="loginBtn">Log In</button>
+        <div id="loginMsg"></div>
+      </form>
+
+      <!-- Register -->
+      <form class="auth-form" id="registerForm" onsubmit="handleRegister(event)">
+        <div class="auth-form-title">Create account</div>
+        <div class="auth-form-sub">Start tracking Nykaa prices for free</div>
+        <div style="height:24px"></div>
+        <div class="field"><label>Your name</label><input type="text" id="regName" placeholder="e.g. Priya" autocomplete="name" required></div>
+        <div class="field"><label>Email address</label><input type="email" id="regEmail" placeholder="you@email.com" autocomplete="email" required></div>
+        <div class="field"><label>Password <span style="color:var(--text-3);font-weight:400">(min. 6 characters)</span></label><input type="password" id="regPassword" placeholder="Create a strong password" autocomplete="new-password" required></div>
+        <button type="submit" class="btn-primary" id="registerBtn">Create Account</button>
+        <div id="registerMsg"></div>
+      </form>
+
+      <!-- Forgot -->
+      <form class="auth-form" id="forgotForm" onsubmit="handleForgotPassword(event)">
+        <div class="auth-form-title">Reset password</div>
+        <div class="auth-form-sub">Verify your identity to set a new password</div>
+        <div style="height:24px"></div>
+        <div class="field"><label>Registered email</label><input type="email" id="fpEmail" placeholder="you@email.com" autocomplete="email" required></div>
+        <div class="field"><label>Your name (as registered)</label><input type="text" id="fpName" placeholder="e.g. Priya" required></div>
+        <div class="field"><label>New password</label><input type="password" id="fpPassword" placeholder="New password (min. 6 chars)" autocomplete="new-password" required></div>
+        <button type="submit" class="btn-primary" id="forgotBtn">Reset Password</button>
+        <div id="forgotMsg"></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ APP SCREEN ═══════════ -->
+<div id="appScreen">
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="header-brand-icon">
+        <svg viewBox="0 0 64 64" fill="none"><text x="32" y="44" font-size="34" text-anchor="middle" font-family="Arial,sans-serif" font-weight="bold" fill="white">N</text></svg>
+      </div>
+      <span class="header-brand-name">Nykaa <span>Tracker</span></span>
+    </div>
+    <nav class="header-nav">
+      <button class="nav-btn active" onclick="showSection('products',this)">My Products</button>
+      <button class="nav-btn" onclick="showSection('alerts',this)">Price Alerts</button>
+      <button class="nav-btn" onclick="showSection('sync',this)">Nykaa Sync</button>
+    </nav>
+    <div class="header-user">
+      <div class="user-avatar" id="headerAvatar">?</div>
+      <span class="user-name" id="headerName"></span>
+      <button class="btn-logout" onclick="logout()">Log out</button>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon pink">🛍️</div>
+        <div><div class="stat-val" id="statProducts">—</div><div class="stat-label">Products Tracked</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">📉</div>
+        <div><div class="stat-val" id="statAlerts">—</div><div class="stat-label">Price Drops</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">💰</div>
+        <div><div class="stat-val" id="statSavings">—</div><div class="stat-label">Best Drop</div></div>
+      </div>
+    </div>
+
+    <!-- ── Products Section ── -->
+    <div id="section-products" class="app-section">
+      <div class="add-bar">
+        <div class="add-bar-label">ADD PRODUCT TO TRACK</div>
+        <div class="add-row">
+          <textarea class="add-input" id="urlInput" rows="2"
+            placeholder="Paste one or more Nykaa product URLs here (one per line)…"></textarea>
+          <div class="add-bottom-row">
+            <span class="add-hint">Paste multiple URLs — one per line — to track them all at once</span>
+            <button class="btn-add" id="addBtn" onclick="addProduct()">+ Track Price</button>
+          </div>
+        </div>
+        <div id="addMsg"></div>
+      </div>
+
+      <div class="section-header">
+        <div>
+          <div class="section-title">Tracked Products</div>
+          <div class="section-sub">Prices auto-refresh every 15 minutes</div>
+        </div>
+        <button class="btn-secondary" id="fixImgBtn" onclick="fixAllImages()">
+          🖼 Fix Images
+        </button>
+      </div>
+      <div id="fixImgMsg" style="margin-bottom:12px"></div>
+      <div id="productGrid"></div>
+    </div>
+
+    <!-- ── Alerts Section ── -->
+    <div id="section-alerts" class="app-section" style="display:none">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Price Drop Alerts</div>
+          <div class="section-sub">Every time a tracked product dropped in price</div>
+        </div>
+      </div>
+      <div id="alertsContainer"></div>
+    </div>
+
+    <!-- ── Sync Section ── -->
+    <div id="section-sync" class="app-section" style="display:none">
+      <div class="sync-card">
+        <h3>🔖 One-Click Bookmarklet</h3>
+        <p>Drag this button to your bookmarks bar. Then while browsing any Nykaa product page — including your cart or wishlist — just click it to instantly add the product to your tracker.</p>
+        <a id="bookmarkletLink" href="#" class="bookmarklet-pill" onclick="return false">
+          <span>➕</span> Add to Nykaa Tracker
+        </a>
+        <div class="steps-list">
+          <div class="step"><div class="step-num">1</div>Show your bookmarks bar — press <strong>Ctrl+Shift+B</strong> (or ⌘+Shift+B on Mac)</div>
+          <div class="step"><div class="step-num">2</div>Drag the pink button above into your bookmarks bar</div>
+          <div class="step"><div class="step-num">3</div>Open any product page on <strong>nykaa.com</strong></div>
+          <div class="step"><div class="step-num">4</div>Click your bookmark — a toast confirms the product was added ✓</div>
+        </div>
+      </div>
+
+      <div class="sync-card">
+        <h3>📋 Bulk Import</h3>
+        <p>Paste multiple Nykaa product URLs below (one per line) to track them all at once. Great for adding your entire wishlist in one go.</p>
+        <textarea class="bulk-textarea" id="bulkUrls" placeholder="https://www.nykaa.com/product-1/p/12345&#10;https://www.nykaa.com/product-2/p/67890&#10;https://www.nykaa.com/product-3/p/11111"></textarea>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <button class="btn-add" onclick="bulkAdd()" style="width:auto;padding:11px 24px">Track All URLs</button>
+          <span id="bulkStatus" style="font-size:.83rem;color:var(--text-3)"></span>
+        </div>
+        <div id="bulkResults"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── History Modal ── -->
+<div class="modal-overlay" id="historyModal">
+  <div class="modal">
+    <div class="modal-inner">
+      <div class="modal-top">
+        <div class="modal-product">
+          <div id="modalThumbWrap"></div>
+          <div>
+            <div class="modal-product-name" id="modalTitle"></div>
+            <div class="modal-product-sub">Price history over time</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="historyChart"></canvas>
+        <div class="chart-empty" id="chartEmpty" style="display:none">No price history recorded yet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let chartInstance = null;
+let currentToken = localStorage.getItem('nykaa_token');
+let currentUser  = JSON.parse(localStorage.getItem('nykaa_user') || 'null');
+
+// ── API helper ─────────────────────────────────────────────────────────
+function api(url, opts={}) {
+  return fetch(url, {
+    ...opts,
+    headers: {
+      'Content-Type':'application/json',
+      ...(currentToken ? { Authorization:'Bearer '+currentToken } : {}),
+      ...(opts.headers||{})
+    }
+  });
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────
+function toast(msg, duration=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ── Auth tabs ──────────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+  const map = ['login','register','forgot'];
+  document.querySelectorAll('.auth-tab').forEach((b,i) => b.classList.toggle('active', map[i]===tab));
+  map.forEach(t => document.getElementById(t+'Form').classList.toggle('active', t===tab));
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Signing in…'; btn.disabled = true;
+  document.getElementById('loginMsg').innerHTML = '';
+  try {
+    const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email:loginEmail.value, password:loginPassword.value }) });
+    const d = await res.json();
+    if (!res.ok) { showAuthMsg('loginMsg', d.error, 'error'); return; }
+    setSession(d.token, d.user);
+  } catch { showAuthMsg('loginMsg','Network error. Please try again.','error'); }
+  finally { btn.textContent = 'Log In'; btn.disabled = false; }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const btn = document.getElementById('registerBtn');
+  btn.textContent = 'Creating…'; btn.disabled = true;
+  document.getElementById('registerMsg').innerHTML = '';
+  try {
+    const res = await fetch('/api/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name:regName.value, email:regEmail.value, password:regPassword.value }) });
+    const d = await res.json();
+    if (!res.ok) { showAuthMsg('registerMsg', d.error, 'error'); return; }
+    setSession(d.token, d.user);
+  } catch { showAuthMsg('registerMsg','Network error. Please try again.','error'); }
+  finally { btn.textContent = 'Create Account'; btn.disabled = false; }
+}
+
+async function handleForgotPassword(e) {
+  e.preventDefault();
+  const btn = document.getElementById('forgotBtn');
+  btn.textContent = 'Verifying…'; btn.disabled = true;
+  document.getElementById('forgotMsg').innerHTML = '';
+  try {
+    const res = await fetch('/api/auth/forgot-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email:fpEmail.value, name:fpName.value, newPassword:fpPassword.value }) });
+    const d = await res.json();
+    if (!res.ok) { showAuthMsg('forgotMsg', d.error, 'error'); return; }
+    showAuthMsg('forgotMsg','✓ Password reset! You can now log in.','success');
+    fpEmail.value=''; fpName.value=''; fpPassword.value='';
+    setTimeout(() => switchAuthTab('login'), 2000);
+  } catch { showAuthMsg('forgotMsg','Network error.','error'); }
+  finally { btn.textContent = 'Reset Password'; btn.disabled = false; }
+}
+
+function showAuthMsg(id, text, type) {
+  document.getElementById(id).innerHTML = `<div class="auth-msg ${type}">${text}</div>`;
+}
+
+function setSession(token, user) {
+  currentToken = token; currentUser = user;
+  localStorage.setItem('nykaa_token', token);
+  localStorage.setItem('nykaa_user', JSON.stringify(user));
+  showApp();
+}
+
+function logout() {
+  localStorage.removeItem('nykaa_token');
+  localStorage.removeItem('nykaa_user');
+  currentToken = null; currentUser = null;
+  document.getElementById('appScreen').classList.remove('visible');
+  document.getElementById('authScreen').classList.add('visible');
+}
+
+function showApp() {
+  document.getElementById('authScreen').classList.remove('visible');
+  document.getElementById('appScreen').classList.add('visible');
+  const name = currentUser?.name || '';
+  document.getElementById('headerName').textContent = name;
+  document.getElementById('headerAvatar').textContent = name[0]?.toUpperCase() || '?';
+  setupBookmarklet();
+  loadProducts();
+  loadStats();
+}
+
+// Auto-login
+if (currentToken && currentUser) {
+  api('/api/auth/me').then(r => r.ok ? showApp() : logout()).catch(() => showApp());
+} else {
+  document.getElementById('authScreen').classList.add('visible');
+}
+
+// ── Bookmarklet ────────────────────────────────────────────────────────
+function setupBookmarklet() {
+  const token = localStorage.getItem('nykaa_token') || '';
+  const base = window.location.origin;
+  const code = `javascript:(function(){var u=window.location.href;if(!u.includes('nykaa.com')){alert('Use this on a Nykaa product page!');return;}var el=document.createElement('div');Object.assign(el.style,{position:'fixed',top:'20px',right:'20px',zIndex:'99999',background:'#E91E8C',color:'#fff',padding:'12px 22px',borderRadius:'30px',fontFamily:'sans-serif',fontSize:'14px',fontWeight:'bold',boxShadow:'0 4px 20px rgba(0,0,0,.25)'});el.textContent='Adding to tracker…';document.body.appendChild(el);fetch('${base}/api/products/add',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer ${token}'},body:JSON.stringify({url:u})}).then(r=>r.json()).then(function(d){el.textContent=d.error?'❌ '+d.error:'✓ Now tracking: '+d.name.slice(0,35);el.style.background=d.error?'#DC2626':'#16a34a';setTimeout(()=>el.remove(),3500);}).catch(function(){el.textContent='❌ Connection error';el.style.background='#DC2626';setTimeout(()=>el.remove(),3000);});})();`;
+  document.getElementById('bookmarkletLink').href = code;
+}
+
+// ── Sections ───────────────────────────────────────────────────────────
+function showSection(name, btn) {
+  document.querySelectorAll('.app-section').forEach(s => s.style.display = 'none');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-'+name).style.display = 'block';
+  if (btn) btn.classList.add('active');
+  if (name === 'alerts') loadAlerts();
+  if (name === 'products') loadProducts();
+  if (name === 'sync') setupBookmarklet();
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const [prods, alerts] = await Promise.all([
+      api('/api/products').then(r=>r.json()),
+      api('/api/alerts').then(r=>r.json())
+    ]);
+    document.getElementById('statProducts').textContent = prods.length;
+    document.getElementById('statAlerts').textContent = alerts.length;
+    const best = alerts.reduce((m,a) => Math.max(m, a.discount_percent||0), 0);
+    document.getElementById('statSavings').textContent = alerts.length ? best.toFixed(1)+'%' : '—';
+  } catch {}
+}
+
+// ── Products ───────────────────────────────────────────────────────────
+function fmt(n) { return n ? '₹'+parseFloat(n).toLocaleString('en-IN') : '—'; }
+function trunc(s,n=60) { return s && s.length>n ? s.slice(0,n)+'…' : (s||''); }
+
+async function loadProducts() {
+  const grid = document.getElementById('productGrid');
+  grid.innerHTML = `<div class="product-grid">${Array(3).fill(`
+    <div class="product-card">
+      <div class="product-img-wrap skeleton" style="height:200px"></div>
+      <div class="product-body">
+        <div class="skeleton" style="height:14px;margin-bottom:8px"></div>
+        <div class="skeleton" style="height:14px;width:60%"></div>
+      </div>
+    </div>`).join('')}</div>`;
+  try {
+    const products = await api('/api/products').then(r => r.json());
+    if (!products.length) {
+      grid.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">🛍️</div>
+        <div class="empty-title">No products yet</div>
+        <div class="empty-sub">Paste a Nykaa product URL above to start tracking prices</div>
+      </div>`;
+      return;
+    }
+    grid.innerHTML = `<div class="product-grid">${products.map(p => productCard(p)).join('')}</div>`;
+  } catch {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-sub">Please refresh the page</div></div>`;
+  }
+}
+
+function productCard(p) {
+  const imgHtml = p.image_url
+    ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    : '';
+  const phStyle = p.image_url ? 'display:none' : '';
+  const onSale = p.on_sale && p.mrp && p.current_price < p.mrp;
+  const saleBadge = onSale ? `<div class="sale-badge">🏷️ SALE</div>` : '';
+  const priceMrpHtml = (p.mrp && p.mrp > p.current_price)
+    ? `<span class="product-price-mrp">${fmt(p.mrp)}</span>
+       <span class="product-price-off">▼ ${(((p.mrp - p.current_price) / p.mrp) * 100).toFixed(0)}% off</span>`
+    : `<div class="product-price-label">current</div>`;
+  return `
+  <div class="product-card" id="card-${p.id}">
+    <div class="product-img-wrap">
+      ${imgHtml}
+      <div class="product-img-placeholder" style="${phStyle}">💄</div>
+      ${saleBadge}
+    </div>
+    <div class="product-body">
+      <div class="product-name"><a href="${p.url}" target="_blank" rel="noopener">${p.name||'Unknown product'}</a></div>
+      <div class="product-price-row">
+        <div class="product-price">${fmt(p.current_price)}</div>
+        ${priceMrpHtml}
+      </div>
+      <div class="product-actions">
+        <button class="btn-action hist" onclick="showHistory(${p.id},'${(p.name||'').replace(/'/g,"\\'")}','${p.image_url||''}')">📈 History</button>
+        <button class="btn-action" onclick="refreshProduct(${p.id})">↻ Refresh</button>
+        <button class="btn-action danger" onclick="deleteProduct(${p.id})">✕</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function addProduct(urlOverride) {
+  const input = document.getElementById('urlInput');
+  const btn   = document.getElementById('addBtn');
+  const msg   = document.getElementById('addMsg');
+
+  // Collect URLs: split by newlines/commas, filter valid nykaa URLs
+  const raw = urlOverride || input.value;
+  const urls = raw.split(/[\n,]+/)
+    .map(u => u.trim())
+    .filter(u => u.length > 0);
+
+  if (!urls.length) { setMsg(msg, 'Please enter at least one Nykaa product URL.', 'error'); return; }
+
+  // Single URL — original flow
+  if (urls.length === 1) {
+    const url = urls[0];
+    btn.textContent = 'Fetching…'; btn.disabled = true;
+    setMsg(msg, 'Scraping product details — may take a moment…', 'loading');
+    try {
+      const res = await api('/api/products/add', { method:'POST', body:JSON.stringify({url}) });
+      const d = await res.json();
+      if (!res.ok) { setMsg(msg, d.error||'Failed to add.', 'error'); return; }
+      setMsg(msg, `✓ Now tracking <strong>${trunc(d.name,45)}</strong> at ${fmt(d.current_price)}`, 'success');
+      if (!urlOverride) input.value = '';
+      loadProducts(); loadStats();
+    } catch { setMsg(msg, 'Network error. Please try again.', 'error'); }
+    finally { btn.textContent = '+ Track Price'; btn.disabled = false; }
+    return;
+  }
+
+  // Multiple URLs — process sequentially, show live progress
+  btn.disabled = true;
+  let done = 0, added = 0, skipped = 0, failed = 0;
+  const results = [];
+
+  for (const url of urls) {
+    done++;
+    btn.textContent = `${done}/${urls.length}…`;
+    setMsg(msg, `<span style="color:var(--text-2)">Processing ${done} of ${urls.length}…</span>`, 'loading');
+    try {
+      const res = await api('/api/products/add', { method:'POST', body:JSON.stringify({url}) });
+      const d = await res.json();
+      if (!res.ok) {
+        failed++;
+        results.push(`<li style="color:#dc2626">✕ ${trunc(url,60)} — ${d.error||'Failed'}</li>`);
+      } else {
+        added++;
+        results.push(`<li style="color:#16a34a">✓ <strong>${trunc(d.name,45)}</strong> — ${fmt(d.current_price)}</li>`);
+      }
+    } catch {
+      failed++;
+      results.push(`<li style="color:#dc2626">✕ ${trunc(url,60)} — Network error</li>`);
+    }
+  }
+
+  input.value = '';
+  btn.textContent = '+ Track Price'; btn.disabled = false;
+
+  const summary = `Added ${added}${failed ? `, ${failed} failed` : ''} of ${urls.length} products`;
+  const color = failed === urls.length ? 'error' : 'success';
+  setMsg(msg, `<strong>${summary}</strong><ul style="margin:8px 0 0;padding-left:18px;line-height:1.9">${results.join('')}</ul>`, color);
+  loadProducts(); loadStats();
+}
+
+async function refreshProduct(id) {
+  const card = document.getElementById('card-'+id);
+  if (card) card.style.opacity = '0.4';
+  toast('Refreshing price…');
+  try {
+    const res = await api(`/api/products/${id}/refresh`, { method:'POST' });
+    const d = await res.json();
+    if (!res.ok) { toast('⚠️ ' + (d.error || 'Refresh failed')); return; }
+    if (d.sale_started && d.mrp) {
+      const pct = d.mrp > 0 ? (((d.mrp - d.new_price) / d.mrp) * 100).toFixed(1) : 0;
+      showSaleBanner(d.name || 'Product', d.mrp, d.new_price, pct);
+    } else if (d.dropped) {
+      const pct = d.old_price > 0 ? (((d.old_price - d.new_price) / d.old_price) * 100).toFixed(1) : 0;
+      showDropBanner(d.name || 'Product', d.old_price, d.new_price, pct);
+    } else {
+      toast('✓ Price up to date — no change');
+    }
+    loadProducts(); loadStats();
+  } catch { toast('Failed to refresh'); }
+  finally { if (card) card.style.opacity = '1'; }
+}
+
+function showSaleBanner(name, mrp, salePrice, pct) {
+  const existing = document.getElementById('dropBanner');
+  if (existing) existing.remove();
+  const banner = document.createElement('div');
+  banner.id = 'dropBanner';
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="font-size:2rem">🏷️</div>
+        <div>
+          <div style="font-weight:800;font-size:1rem;margin-bottom:3px">Sale started on ${trunc(name,45)}!</div>
+          <div style="font-size:.88rem;opacity:.85">
+            MRP <span style="text-decoration:line-through;opacity:.7">₹${parseFloat(mrp).toLocaleString('en-IN')}</span>
+            &nbsp;→&nbsp;
+            <strong>₹${parseFloat(salePrice).toLocaleString('en-IN')}</strong>
+            &nbsp;&nbsp;<span style="background:rgba(255,255,255,.25);padding:2px 10px;border-radius:12px;font-weight:700">▼ ${pct}% OFF</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="document.getElementById('dropBanner').remove()"
+        style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem;flex-shrink:0">✕</button>
+    </div>`;
+  Object.assign(banner.style, {
+    position:'fixed', top:'72px', left:'50%', transform:'translateX(-50%)',
+    background:'linear-gradient(135deg,#e11d48,#be123c)',
+    color:'#fff', padding:'16px 24px', borderRadius:'14px',
+    boxShadow:'0 8px 32px rgba(225,29,72,.4)', zIndex:'9998',
+    maxWidth:'600px', width:'calc(100% - 32px)',
+    animation:'slideDown .3s ease'
+  });
+  document.body.appendChild(banner);
+  setTimeout(() => { if (banner.parentNode) banner.remove(); }, 8000);
+}
+
+function showDropBanner(name, oldPrice, newPrice, pct) {
+  const existing = document.getElementById('dropBanner');
+  if (existing) existing.remove();
+  const banner = document.createElement('div');
+  banner.id = 'dropBanner';
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="font-size:2rem">🎉</div>
+        <div>
+          <div style="font-weight:800;font-size:1rem;margin-bottom:3px">Price dropped on ${trunc(name,45)}!</div>
+          <div style="font-size:.88rem;opacity:.85">
+            <span style="text-decoration:line-through;opacity:.7">₹${parseFloat(oldPrice).toLocaleString('en-IN')}</span>
+            &nbsp;→&nbsp;
+            <strong>₹${parseFloat(newPrice).toLocaleString('en-IN')}</strong>
+            &nbsp;&nbsp;<span style="background:rgba(255,255,255,.25);padding:2px 10px;border-radius:12px;font-weight:700">▼ ${pct}% OFF</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="document.getElementById('dropBanner').remove()"
+        style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem;flex-shrink:0">✕</button>
+    </div>`;
+  Object.assign(banner.style, {
+    position:'fixed', top:'72px', left:'50%', transform:'translateX(-50%)',
+    background:'linear-gradient(135deg,#16a34a,#15803d)',
+    color:'#fff', padding:'16px 24px', borderRadius:'14px',
+    boxShadow:'0 8px 32px rgba(22,163,74,.4)', zIndex:'9998',
+    maxWidth:'600px', width:'calc(100% - 32px)',
+    animation:'slideDown .3s ease'
+  });
+  document.body.appendChild(banner);
+  setTimeout(() => { if (banner.parentNode) banner.remove(); }, 8000);
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Stop tracking this product?')) return;
+  await api(`/api/products/${id}`, { method:'DELETE' });
+  loadProducts(); loadStats();
+  toast('Product removed');
+}
+
+// ── Fix Images ─────────────────────────────────────────────────────────
+async function fixAllImages() {
+  const btn = document.getElementById('fixImgBtn');
+  const msg = document.getElementById('fixImgMsg');
+  btn.disabled = true; btn.textContent = '⏳ Fetching…';
+  msg.innerHTML = '<div style="font-size:.83rem;color:var(--text-2);padding:8px 0">Fetching images for products missing them — this may take a minute…</div>';
+  try {
+    const res = await api('/api/products/fix-images', { method:'POST' });
+    const d = await res.json();
+    if (d.total === 0) { msg.innerHTML = '<div style="font-size:.83rem;color:#16a34a">✓ All products already have images.</div>'; }
+    else {
+      msg.innerHTML = `<div style="font-size:.83rem;color:#16a34a">✓ Refreshed images for ${d.total} product(s).</div>`;
+      setTimeout(() => { loadProducts(); msg.innerHTML = ''; }, 2000);
+    }
+  } catch { msg.innerHTML = '<div style="font-size:.83rem;color:#DC2626">Failed. Try again.</div>'; }
+  finally { btn.disabled = false; btn.textContent = '🖼 Fix Images'; }
+}
+
+// ── Bulk Add ───────────────────────────────────────────────────────────
+async function bulkAdd() {
+  const raw = document.getElementById('bulkUrls').value.trim();
+  if (!raw) return;
+  const urls = raw.split('\n').map(u=>u.trim()).filter(u=>u.includes('nykaa.com'));
+  if (!urls.length) { document.getElementById('bulkStatus').textContent='No valid Nykaa URLs found.'; return; }
+  const results = document.getElementById('bulkResults');
+  document.getElementById('bulkStatus').textContent = `Processing ${urls.length} URL(s)…`;
+  results.innerHTML = '';
+  let ok = 0, fail = 0;
+  for (const url of urls) {
+    const res = await api('/api/products/add', { method:'POST', body:JSON.stringify({url}) });
+    const d = await res.json();
+    const div = document.createElement('div');
+    div.className = 'bulk-row';
+    if (res.ok) { div.innerHTML = `<span class="bulk-ok">✓</span> <span>${trunc(d.name,55)} — ${fmt(d.current_price)}</span>`; ok++; }
+    else { div.innerHTML = `<span class="bulk-fail">✗</span> <span style="color:var(--text-3)">${trunc(url,50)} — ${d.error}</span>`; fail++; }
+    results.appendChild(div);
+  }
+  document.getElementById('bulkStatus').textContent = `Done: ${ok} added, ${fail} skipped.`;
+  document.getElementById('bulkUrls').value = '';
+  loadProducts(); loadStats();
+}
+
+// ── Alerts ─────────────────────────────────────────────────────────────
+async function loadAlerts() {
+  const container = document.getElementById('alertsContainer');
+  container.innerHTML = '<div style="padding:20px;color:var(--text-3);font-size:.88rem">Loading…</div>';
+  try {
+    const alerts = await api('/api/alerts').then(r=>r.json());
+    if (!alerts.length) {
+      container.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">🔔</div>
+        <div class="empty-title">No alerts yet</div>
+        <div class="empty-sub">Prices are checked every 15 minutes. You'll see price drops and sale alerts here as soon as they happen.</div>
+      </div>`;
+      return;
+    }
+    container.innerHTML = `<div class="alerts-wrap">
+      <div class="alert-header">
+        <div class="alert-th">Product</div>
+        <div class="alert-th">Was</div>
+        <div class="alert-th">Now</div>
+        <div class="alert-th">Off</div>
+        <div class="alert-th">When</div>
+      </div>
+      ${alerts.map(a=>{
+        const isSale = a.alert_type === 'sale';
+        const badge = isSale
+          ? `<span class="alert-badge sale">🏷️ Sale</span>`
+          : `<span class="alert-badge">▼ ${(a.discount_percent||0).toFixed(1)}%</span>`;
+        const wasLabel = isSale ? `<div class="alert-old" title="MRP">${fmt(a.old_price)}</div>` : `<div class="alert-old">${fmt(a.old_price)}</div>`;
+        return `
+        <div class="alert-item">
+          <div class="alert-name">${trunc(a.name||'Unknown',45)}</div>
+          ${wasLabel}
+          <div class="alert-new">${fmt(a.new_price)}</div>
+          <div>${badge}</div>
+          <div class="alert-time">${new Date(a.timestamp).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  } catch { container.innerHTML = '<div style="color:#DC2626;padding:20px;font-size:.88rem">Failed to load alerts.</div>'; }
+}
+
+// ── History Chart ──────────────────────────────────────────────────────
+async function showHistory(id, name, imageUrl) {
+  document.getElementById('modalTitle').textContent = trunc(name, 65);
+  const wrap = document.getElementById('modalThumbWrap');
+  if (imageUrl) {
+    wrap.innerHTML = `<img class="modal-thumb" src="${imageUrl}" alt=""
+      onerror="this.outerHTML='<div class=\\'modal-ph\\'>💄</div>'">`;
+  } else {
+    wrap.innerHTML = `<div class="modal-ph">💄</div>`;
+  }
+  document.getElementById('historyModal').classList.add('open');
+  document.getElementById('chartEmpty').style.display = 'none';
+  document.getElementById('historyChart').style.display = 'block';
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  try {
+    const history = await api(`/api/products/${id}/history`).then(r=>r.json());
+    if (!history.length) {
+      document.getElementById('historyChart').style.display = 'none';
+      document.getElementById('chartEmpty').style.display = 'block';
+      return;
+    }
+    const labels = history.map(h => {
+      const d = new Date(h.timestamp);
+      return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) + ' ' +
+             d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    });
+    const prices = history.map(h => h.price);
+    const min = Math.min(...prices), max = Math.max(...prices);
+    const pad = (max-min)*0.3 || min*0.1 || 50;
+    chartInstance = new Chart(document.getElementById('historyChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Price',
+          data: prices,
+          borderColor: '#E91E8C',
+          backgroundColor: (ctx) => {
+            const g = ctx.chart.ctx.createLinearGradient(0,0,0,280);
+            g.addColorStop(0,'rgba(233,30,140,.15)');
+            g.addColorStop(1,'rgba(233,30,140,0)');
+            return g;
+          },
+          borderWidth: 2.5, fill: true, tension: .4,
+          pointBackgroundColor: '#E91E8C', pointBorderColor: '#fff',
+          pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 7
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1A0A12', titleColor: '#fff', bodyColor: 'rgba(255,255,255,.7)',
+            padding: 12, cornerRadius: 10,
+            callbacks: { label: c => ' ₹' + c.parsed.y.toLocaleString('en-IN') }
+          }
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 6, font: { size: 11 }, color: '#B09AA4' }, grid: { display: false } },
+          y: {
+            min: Math.max(0, min-pad),
+            ticks: { callback: v => '₹'+v.toLocaleString('en-IN'), font: { size: 11 }, color: '#B09AA4' },
+            grid: { color: '#F0E8ED' }
+          }
+        }
+      }
+    });
+  } catch {
+    document.getElementById('historyChart').style.display = 'none';
+    document.getElementById('chartEmpty').style.display = 'block';
+    document.getElementById('chartEmpty').textContent = 'Failed to load history.';
+  }
+}
+
+function closeModal() {
+  document.getElementById('historyModal').classList.remove('open');
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+}
+
+document.getElementById('historyModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+document.getElementById('urlInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addProduct(); }
+});
+
+function setMsg(el, html, type) {
+  el.innerHTML = `<div class="add-msg ${type}">${html}</div>`;
+}
+</script>
+</body>
+</html>
