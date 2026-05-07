@@ -884,7 +884,15 @@ async function addProduct(urlOverride) {
     try {
       const res = await api('/api/products/add', { method:'POST', body:JSON.stringify({url}) });
       const d = await res.json();
-      if (!res.ok) { setMsg(msg, d.error||'Failed to add.', 'error'); return; }
+      if (!res.ok) {
+        // Nykaa blocked scraping — show manual entry form
+        if (res.status === 500) {
+          showManualForm(url, msg);
+          btn.textContent = '+ Track Price'; btn.disabled = false;
+          return;
+        }
+        setMsg(msg, d.error||'Failed to add.', 'error'); return;
+      }
       setMsg(msg, `✓ Now tracking <strong>${trunc(d.name,45)}</strong> at ${fmt(d.current_price)}`, 'success');
       if (!urlOverride) input.value = '';
       loadProducts(); loadStats();
@@ -1194,6 +1202,79 @@ document.getElementById('urlInput')?.addEventListener('keydown', e => {
 
 function setMsg(el, html, type) {
   el.innerHTML = `<div class="add-msg ${type}">${html}</div>`;
+}
+
+function showManualForm(url, msgEl) {
+  msgEl.innerHTML = `
+    <div style="background:#FFF7FC;border:1.5px solid #F48FB1;border-radius:12px;padding:16px 18px;margin-top:8px">
+      <div style="font-size:.82rem;font-weight:700;color:#C2185B;margin-bottom:4px">⚠️ Nykaa blocked auto-fetch</div>
+      <div style="font-size:.78rem;color:#7B3F6E;margin-bottom:12px">Enter the product details manually — open the Nykaa page to copy the name and price.</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input id="mName" placeholder="Product name (copy from Nykaa page)" style="padding:9px 12px;border:1.5px solid #F48FB1;border-radius:8px;font-size:.83rem;font-family:inherit;outline:none;width:100%">
+        <div style="display:flex;gap:8px">
+          <input id="mPrice" type="number" placeholder="Current price (₹)" style="flex:1;padding:9px 12px;border:1.5px solid #F48FB1;border-radius:8px;font-size:.83rem;font-family:inherit;outline:none">
+          <input id="mMrp" type="number" placeholder="MRP (₹, optional)" style="flex:1;padding:9px 12px;border:1.5px solid #F48FB1;border-radius:8px;font-size:.83rem;font-family:inherit;outline:none">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:2px">
+          <button onclick="submitManual('${url}')" style="flex:1;padding:9px;background:linear-gradient(135deg,#E91E8C,#C2185B);color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;font-family:inherit;cursor:pointer">✓ Add Manually</button>
+          <button onclick="document.getElementById('addMsg').innerHTML=''" style="padding:9px 14px;background:#fff;border:1.5px solid #F48FB1;color:#C2185B;border-radius:8px;font-size:.83rem;font-weight:600;font-family:inherit;cursor:pointer">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function submitManual(url) {
+  const name  = document.getElementById('mName')?.value?.trim();
+  const price = document.getElementById('mPrice')?.value;
+  const mrp   = document.getElementById('mMrp')?.value;
+  const msg   = document.getElementById('addMsg');
+  if (!name || !price) { msg.querySelector('div').style.borderColor='#DC2626'; return; }
+  try {
+    const res = await api('/api/products/add-manual', { method:'POST', body:JSON.stringify({url, name, price, mrp: mrp||null}) });
+    const d = await res.json();
+    if (!res.ok) { setMsg(msg, d.error||'Failed.', 'error'); return; }
+    setMsg(msg, `✓ Manually added <strong>${trunc(d.name,45)}</strong> at ${fmt(d.current_price)}`, 'success');
+    document.getElementById('urlInput').value = '';
+    loadProducts(); loadStats();
+  } catch { setMsg(msg, 'Network error.', 'error'); }
+}
+
+function showManualForm(url, msgEl) {
+  msgEl.innerHTML = `
+    <div style="background:#FFF7FC;border:1.5px solid #F48FB1;border-radius:12px;padding:16px 18px;margin-top:8px">
+      <div style="font-size:.82rem;font-weight:700;color:#C2185B;margin-bottom:4px">⚠️ Nykaa blocked auto-fetch — enter details manually</div>
+      <div style="font-size:.78rem;color:#7B3F6E;margin-bottom:12px">Open the Nykaa product page in another tab, copy the name and price, and enter them below.</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input id="mName" placeholder="Product name (copy from Nykaa)" style="padding:10px 13px;border:1.5px solid #F48FB1;border-radius:8px;font-size:.84rem;font-family:inherit;outline:none;width:100%;color:#1A0A12">
+        <div style="display:flex;gap:8px">
+          <input id="mPrice" type="number" placeholder="Current price ₹" style="flex:1;padding:10px 13px;border:1.5px solid #F48FB1;border-radius:8px;font-size:.84rem;font-family:inherit;outline:none;color:#1A0A12">
+          <input id="mMrp" type="number" placeholder="MRP ₹ (optional)" style="flex:1;padding:10px 13px;border:1.5px solid #F48FB1;border-radius:8px;font-size:.84rem;font-family:inherit;outline:none;color:#1A0A12">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:2px">
+          <button onclick="submitManual('${url}')" style="flex:1;padding:10px;background:linear-gradient(135deg,#E91E8C,#C2185B);color:#fff;border:none;border-radius:8px;font-size:.84rem;font-weight:700;font-family:inherit;cursor:pointer">✓ Add Manually</button>
+          <button onclick="document.getElementById('addMsg').innerHTML=''" style="padding:10px 16px;background:#fff;border:1.5px solid #F48FB1;color:#C2185B;border-radius:8px;font-size:.84rem;font-weight:600;font-family:inherit;cursor:pointer">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function submitManual(url) {
+  const name  = document.getElementById('mName')?.value?.trim();
+  const price = document.getElementById('mPrice')?.value;
+  const mrp   = document.getElementById('mMrp')?.value;
+  const msg   = document.getElementById('addMsg');
+  if (!name || !price) {
+    msg.querySelector('input') && (msg.querySelector('input').style.borderColor='#DC2626');
+    return;
+  }
+  try {
+    const res = await api('/api/products/add-manual', { method:'POST', body:JSON.stringify({url, name, price, mrp: mrp||null}) });
+    const d = await res.json();
+    if (!res.ok) { setMsg(msg, d.error||'Failed.', 'error'); return; }
+    setMsg(msg, `✓ Manually added <strong>${trunc(d.name,45)}</strong> at ${fmt(d.current_price)}`, 'success');
+    document.getElementById('urlInput').value = '';
+    loadProducts(); loadStats();
+  } catch { setMsg(msg, 'Network error.', 'error'); }
 }
 </script>
 </body>
