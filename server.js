@@ -1,260 +1,127 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const axios = require('axios');
 const cheerio = require('cheerio');
-const path = require('path');
+const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'nykaa_secret';
 const app = express();
-const PORT = 5000;
-
-// Middleware
 app.use(express.json());
+app.use(express.static('public'));
 
-// ==================== DATABASE SETUP ====================
-const dbPath = path.join(__dirname, 'tracker.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) console.error('DB Error:', err);
-  else console.log('✅ Connected to SQLite database');
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
 });
 
-// Create tables on startup
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      url TEXT UNIQUE NOT NULL,
-      current_price REAL,
-      added_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-      last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS price_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      product_id INTEGER NOT NULL,
-      price REAL NOT NULL,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(product_id) REFERENCES products(id)
-    )
-  `);
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS alerts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      product_id INTEGER NOT NULL,
-      old_price REAL,
-      new_price REAL,
-      discount_percent REAL,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(product_id) REFERENCES products(id)
-    )
-  `);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
-// ==================== SCRAPER FUNCTION ====================
-async function scrapeProduct(url) {
+const db = (sql, params) => pool.query(sql, params);
+
+async function initDB() {
   try {
-    console.log('🔄 Scraping product...');
-    
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      timeout: 15000
-    });
+    await db(`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR(255), email VARCHAR(255) UNIQUE, password_hash VARCHAR(255), created_at TIMESTAMP DEFAULT NOW())`);
+    await db(`CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), name VARCHAR(500), url TEXT UNIQUE, current_price NUMERIC(10,2), image_url TEXT, added_date TIMESTAMP DEFAULT NOW())`);
+    await db(`CREATE TABLE IF NOT EXISTS price_history (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id), price NUMERIC(10,2), timestamp TIMESTAMP DEFAULT NOW())`);
+    console.log('DB ready');
+  } catch (e) {
+    console.log('DB error:', e.message);
+  }
+}
+initDB();
 
-    const $ = cheerio.load(response.data);
-
-    // Extract product name
-    const productName = $('h1').first().text().trim() || 'Unknown Product';
-    
-    // Extract price
-    let priceText = $('span.css-1jczs19').first().text();
-    if (!priceText) priceText = $('[data-testid="discountedPrice"]').first().text();
-    if (!priceText) priceText = $('.productDiscountedPrice').first().text();
-    
-    const currentPrice = parseFloat(priceText.replace(/[^\d.]/g, ''));
-
-    if (!currentPrice || isNaN(currentPrice)) {
-      return {
-        success: false,
-        error: 'Could not extract price from page'
-      };
-    }
-
-    console.log('✅ Scraped:', productName, '- ₹' + currentPrice);
-
-    return {
-      name: productName,
-      currentPrice: currentPrice,
-      success: true
-    };
-
-  } catch (error) {
-    console.error('❌ Scrape error:', error.message);
-    return {
-      success: false,
-      error: error.message
-    };
+function auth(req, res, next) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Not authenticated' });
   }
 }
 
-// ==================== API ROUTES ====================
-
-// 1. ADD PRODUCT
-app.post('/api/products/add', async (req, res) => {
-  const { url } = req.body;
-
-  if (!url) return res.status(400).json({ error: 'URL required' });
-
+app.post('/api/auth/register', async (req, res) => {
   try {
-    const productData = await scrapeProduct(url);
-
-    if (!productData.success) {
-      return res.status(500).json({ error: 'Failed to scrape: ' + productData.error });
-    }
-
-    db.run(
-      `INSERT INTO products (name, url, current_price) VALUES (?, ?, ?)`,
-      [productData.name, url, productData.currentPrice],
-      function (err) {
-        if (err) {
-          if (err.message.includes('UNIQUE')) {
-            return res.status(400).json({ error: 'Product already being tracked' });
-          }
-          return res.status(500).json({ error: 'Database error' });
-        }
-
-        const productId = this.lastID;
-
-        db.run(
-          `INSERT INTO price_history (product_id, price) VALUES (?, ?)`,
-          [productId, productData.currentPrice]
-        );
-
-        res.json({
-          id: productId,
-          name: productData.name,
-          url: url,
-          current_price: productData.currentPrice,
-          message: '✅ Product added successfully!'
-        });
-      }
-    );
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const { name, email, password } = req.body;
+    const hash = await bcrypt.hash(password, 10);
+    const result = await db('INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id', [name, email.toLowerCase(), hash]);
+    const token = jwt.sign({ id: result.rows[0].id, name, email: email.toLowerCase() }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, user: { id: result.rows[0].id, name, email: email.toLowerCase() } });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 });
 
-// 2. GET ALL PRODUCTS
-app.get('/api/products', (req, res) => {
-  db.all(
-    `SELECT id, name, url, current_price, added_date FROM products ORDER BY added_date DESC`,
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows || []);
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const result = await db('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    const user = result.rows[0];
+    if (!user || !await bcrypt.compare(password, user.password_hash)) {
+      return res.status(401).json({ error: 'Wrong credentials' });
     }
-  );
+    const token = jwt.sign({ id: user.id, name: user.name, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
-// 3. GET SINGLE PRODUCT
-app.get('/api/products/:id', (req, res) => {
-  db.get(
-    `SELECT * FROM products WHERE id = ?`,
-    [req.params.id],
-    (err, row) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (!row) return res.status(404).json({ error: 'Product not found' });
-      res.json(row);
-    }
-  );
+app.get('/api/auth/me', auth, async (req, res) => {
+  try {
+    const result = await db('SELECT id, name, email FROM users WHERE id = $1', [req.user.id]);
+    res.json(result.rows[0]);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
-// 4. GET PRICE HISTORY
-app.get('/api/products/:id/history', (req, res) => {
-  db.all(
-    `SELECT price, timestamp FROM price_history WHERE product_id = ? ORDER BY timestamp ASC`,
-    [req.params.id],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows || []);
-    }
-  );
+app.post('/api/products/add', auth, async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url.includes('nykaa.com')) return res.status(400).json({ error: 'Invalid URL' });
+    
+    const response = await axios.get(url, { timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const $ = cheerio.load(response.data);
+    const name = $('meta[property="og:title"]').attr('content') || 'Product';
+    const price = parseFloat($('meta[property="product:price:amount"]').attr('content') || '0');
+    
+    if (!price) return res.status(400).json({ error: 'Could not find price' });
+    
+    const result = await db('INSERT INTO products (user_id, name, url, current_price) VALUES ($1, $2, $3, $4) RETURNING id', [req.user.id, name, url, price]);
+    await db('INSERT INTO price_history (product_id, price) VALUES ($1, $2)', [result.rows[0].id, price]);
+    
+    res.json({ id: result.rows[0].id, name, url, current_price: price });
+  } catch (e) {
+    res.status(400).json({ error: e.message || 'Nykaa is blocking requests' });
+  }
 });
 
-// 5. REFRESH PRODUCT PRICE
-app.post('/api/products/:id/refresh', async (req, res) => {
-  db.get(
-    `SELECT url, current_price FROM products WHERE id = ?`,
-    [req.params.id],
-    async (err, product) => {
-      if (err || !product) return res.status(404).json({ error: 'Product not found' });
-
-      try {
-        const productData = await scrapeProduct(product.url);
-        if (!productData.success) throw new Error(productData.error);
-
-        const newPrice = productData.currentPrice;
-
-        db.run(`UPDATE products SET current_price = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?`, 
-          [newPrice, req.params.id]);
-
-        db.run(`INSERT INTO price_history (product_id, price) VALUES (?, ?)`, 
-          [req.params.id, newPrice]);
-
-        if (newPrice < product.current_price) {
-          const discountPercent = ((product.current_price - newPrice) / product.current_price) * 100;
-          db.run(
-            `INSERT INTO alerts (product_id, old_price, new_price, discount_percent) VALUES (?, ?, ?, ?)`,
-            [req.params.id, product.current_price, newPrice, discountPercent]
-          );
-        }
-
-        res.json({
-          success: true,
-          old_price: product.current_price,
-          new_price: newPrice,
-          message: newPrice < product.current_price ? '✅ Price dropped!' : 'No change'
-        });
-      } catch (error) {
-        res.status(500).json({ error: error.message });
-      }
-    }
-  );
+app.get('/api/products', auth, async (req, res) => {
+  try {
+    const result = await db('SELECT * FROM products WHERE user_id = $1 ORDER BY added_date DESC', [req.user.id]);
+    res.json(result.rows);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
-// 6. GET ALERTS
-app.get('/api/alerts', (req, res) => {
-  db.all(
-    `SELECT a.*, p.name FROM alerts a JOIN products p ON a.product_id = p.id ORDER BY a.timestamp DESC`,
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows || []);
-    }
-  );
+app.delete('/api/products/:id', auth, async (req, res) => {
+  try {
+    await db('DELETE FROM price_history WHERE product_id = $1', [req.params.id]);
+    await db('DELETE FROM products WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
-// 7. DELETE PRODUCT
-app.delete('/api/products/:id', (req, res) => {
-  db.run(`DELETE FROM alerts WHERE product_id = ?`, [req.params.id]);
-  db.run(`DELETE FROM price_history WHERE product_id = ?`, [req.params.id]);
-  db.run(`DELETE FROM products WHERE id = ?`, [req.params.id], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, message: 'Product deleted' });
-  });
-});
-
-// ==================== START SERVER ====================
-app.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════╗
-║  🚀 NYKAA PRICE TRACKER SERVER         ║
-║  Running on http://localhost:${PORT}    ║
-║  Database: tracker.db                  ║
-╚════════════════════════════════════════╝
-  `);
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => console.log(`Server on ${PORT}`));
